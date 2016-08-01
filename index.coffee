@@ -1,11 +1,12 @@
 Q         = require 'q'
 fs        = require 'fs'
 _         = require 'lodash'
-pairs     = require './pairs'
-flusher   = require './flusher'
+pairs     = require './lib/pairs'
+flusher   = require './lib/flusher'
 async     = require 'async'
 request   = require 'request'
-
+chai      = require 'chai'
+assert    = chai.assert
 
 # validate for requireds and optionals [done]
   # 1. make bodies befor request [done]
@@ -19,16 +20,16 @@ request   = require 'request'
 
 
 internals =
-  url: 'http://localhost:3100'
+  url: 'http://localhost'
 
   form: {
     attachments: []
   }
 
-  sample: {}
+  defaults: {}
   
   getPairs: (array) ->
-    Q(pairs(array, @sample))
+    Q(pairs(array, @defaults))
 
   makeBodies: () ->
     bodies = {}
@@ -71,7 +72,7 @@ internals =
     else
       cb()
 
-  makeRequest: (body, cb) ->
+  makeRequest: (body, statusCode, cb) ->
     @form =
       attachments: []
     @makeForm body, () =>
@@ -91,7 +92,8 @@ internals =
           request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
             if err
               throw err
-            cb(form, data)
+            cb(form, response)
+            assert.equal(response.statusCode, 300)
           )
         )
       else
@@ -101,56 +103,64 @@ internals =
         request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
           if err
             throw err
-          cb(form,data)
+          cb(form, response)
         )
 
   flushData: ->
   
-  checkResponse: ->
+  checkStatus: (status, response) ->
 
-module.exports = (route, props, methods) ->
-  internals.requireds = props.requireds if props?.requireds?
-  internals.optionals = props.optionals if props?.optionals?
-  internals.sample    = props.sample if props?.sample?
-  internals.route     = route
+
+module.exports = (options) ->
   
-  internals.makeBodies()
-    .then (bodies) ->
-      result = []
+  internals.url = if options.url? then options.url else 'http://localhost'
+  
+  {
+    look: (route, props, callend) ->
+      internals.requireds = props.requireds if props?.requireds?
+      internals.optionals = props.optionals if props?.optionals?
+      internals.defaults  = props.defaults if props?.defaults?
+      internals.route     = route
+      
+      internals.makeBodies()
+        .then (bodies) ->
+          result = []
 
-      queue = (body, bag, cb) ->
-        curr = body.shift()
-        Q.nfcall flusher, () ->
-          internals.makeRequest(curr , (request, response) ->
-            if body.length
-              bag.push { request: request, response: response }
-              queue(body, bag, cb)
-            else
-              bag.push { request: request, response: response }
-              cb(bag)
+          queue = (body, statusCode, bag, cb) ->
+            curr = body.shift()
+            Q.nfcall flusher, options.flusher, () ->
+              internals.makeRequest(curr , statusCode, (request, response) ->
+                if body.length
+                  bag.push { request: request, response: response }
+                  queue(body, statusCode,bag, cb)
+                else
+                  bag.push { request: request, response: response }
+                  cb(bag)
+              )
+
+          async.series({
+
+             r200: (cb) ->
+               queue [bodies.r200], 200, [], (bag) ->
+                 cb(null, bag)
+                 console.log '\n\n#################################### r200 #####################################\n\n'
+                 console.log bag
+
+              r400: (cb) ->
+               queue bodies.r400, 400, [], (bag) ->
+                 console.log '\n\n#################################### r400 #####################################\n\n'
+                 console.log bag
+                 cb(null, bag)
+
+             o200: (cb) ->
+               queue bodies.o200, 200, [], (bag) ->
+                 console.log '\n\n#################################### o200 #####################################\n\n'
+                 console.log bag
+                 cb(null, bag)
+            
+          }, (err, result) ->
+            if err
+              throw err
+            callend(result)
           )
-
-      async.series({
-
-         r200: (cb) ->
-           queue [bodies.r200], [], (bag) ->
-             cb(null, "1")
-             console.log '\n\n#################################### r200 #####################################\n\n'
-             console.log bag
-
-          r400: (cb) ->
-           queue bodies.r400, [], (bag) ->
-             console.log '\n\n#################################### r400 #####################################\n\n'
-             console.log bag
-             cb(null, "2")
-
-         o200: (cb) ->
-           queue bodies.o200, [], (bag) ->
-             console.log '\n\n#################################### o200 #####################################\n\n'
-             console.log bag
-             cb(null, "3")
-        
-      }, (err, result) ->
-        if err
-          throw err
-      )
+  }
