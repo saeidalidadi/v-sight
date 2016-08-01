@@ -6,16 +6,16 @@ USER =
   avatar: "#{__dirname}/eye.jpg"
   passport:
     scan: "#{__dirname}/eye.jpg"
-    number: 333333
+    number: '333333'
   version: 1
   device: 'android'
   city: 'Sydny'
   gender: 'male'
 
 props =
-  optionals: [ 'city', 'gender:male', ['passport[number]:333333', 'passport[scan]' ] ]
+  optionals: [ 'city', 'gender:1', ["passport[number]:ddddddddd", '@passport[scan]' ] ]
   requireds: ['email', 'name', 'version', 'device', '@avatar']
   sample: USER
 
-eye('/va/users/signup', props)
+eye('/v1/users/signup', props)
 
