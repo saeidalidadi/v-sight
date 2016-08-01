@@ -3,12 +3,12 @@ cluster = new couchbase.Cluster('couchbase://127.0.0.1')
 bucket = cluster.openBucket("tipi")
 exec = require('child_process').execFile
 
-module.exports = (done) ->
+module.exports = (options, done) ->
   
-  user = 'Administrator:rootroot'
+  user = "#{options.admin}:#{options.password}"
   header = 'Content-Type: application/json'
   query = '?stale=false&inclusive_end=true&connection_timeout=6000&skip=0&reduce=false'
-  url = "http://localhost:8092/tipi/_design/dev_flusher/_view/get_all#{query}"
+  url = "http://localhost:8092/#{options.bucket}/_design/dev_flusher/_view/get_all#{query}"
   
   exec("curl", [ '-X', 'GET', '-u', user, '-H', header, url ], (err, out, code) =>
     body = JSON.parse(out)
