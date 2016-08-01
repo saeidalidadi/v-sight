@@ -93,17 +93,17 @@ internals =
             if err
               throw err
             cb(form, response)
-            assert.equal(response.statusCode, 300)
+            assert.equal(response.statusCode, statusCode)
           )
         )
       else
         form = @form
         delete @form.attachments
-        console.log "#{internals.url}#{internals.route}"
         request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
           if err
             throw err
           cb(form, response)
+          assert.equal(response.statusCode, statusCode)
         )
 
   flushData: ->
@@ -124,7 +124,6 @@ module.exports = (options) ->
       
       internals.makeBodies()
         .then (bodies) ->
-          result = []
 
           queue = (body, statusCode, bag, cb) ->
             curr = body.shift()
@@ -143,24 +142,26 @@ module.exports = (options) ->
              r200: (cb) ->
                queue [bodies.r200], 200, [], (bag) ->
                  cb(null, bag)
-                 console.log '\n\n#################################### r200 #####################################\n\n'
-                 console.log bag
 
-              r400: (cb) ->
+             r400: (cb) ->
                queue bodies.r400, 400, [], (bag) ->
-                 console.log '\n\n#################################### r400 #####################################\n\n'
-                 console.log bag
                  cb(null, bag)
 
              o200: (cb) ->
                queue bodies.o200, 200, [], (bag) ->
-                 console.log '\n\n#################################### o200 #####################################\n\n'
-                 console.log bag
                  cb(null, bag)
             
           }, (err, result) ->
             if err
               throw err
             callend(result)
+            if options.log?
+              console.log '\n\n#################################### r200 #####################################\n\n'
+              console.log result.r200[0].response.body
+              console.log '\n\n#################################### r400 #####################################\n\n'
+              console.log result.r400[0].response.body
+              console.log '\n\n#################################### o200 #####################################\n\n'
+              console.log result.o200[0].response.body
+
           )
   }

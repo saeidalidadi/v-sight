@@ -1,4 +1,7 @@
-eye = require './eye'
+eye = require './index.js'
+chai     = require 'chai'
+should   = chai.should()
+Q = require 'q'
 
 USER =
   name: 'John Connor'
@@ -9,13 +12,28 @@ USER =
     number: '333333'
   version: 1
   device: 'android'
-  city: 'Sydny'
-  gender: 'male'
+  city: 'Shiraz'
+  gender: '1'
 
 props =
   optionals: [ 'city', 'gender:1', ["passport[number]:ddddddddd", '@passport[scan]' ] ]
   requireds: ['email', 'name', 'version', 'device', '@avatar']
-  sample: USER
+  defaults: USER
 
-eye('/v1/users/signup', props)
+loo = eye({
+  log: true
+  url: 'http://localhost:8080'
+  flusher:
+    bucket: 'tipi'
+    admin:'Administrator'
+    password: 'rootroot'
+})
+
+describe "Guys", ->
+  it 'should look at me after signup', (done) ->
+    @.timeout 7000
+    loo.look('/v1/users/signup', props, (result) ->
+      #console.log result
+      done()
+    )
 
