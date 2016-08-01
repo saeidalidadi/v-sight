@@ -1,0 +1,24 @@
+{
+  "name": "eye",
+  "version": "1.0.0",
+  "description": "eye look at API routes for validation test.",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "keywords": [
+    "validation",
+    "API",
+    "route"
+  ],
+  "author": "Saeid Alidadi",
+  "license": "ISC",
+  "devDependencies": {
+    "request": "^2.74.0"
+  },
+  "dependencies": {
+    "couchbase": "^2.2.1",
+    "lodash": "^4.14.1",
+    "q": "^1.4.1"
+  }
+}
