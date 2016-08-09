@@ -113,9 +113,12 @@ internals =
 
 module.exports = (options) ->
   
-  internals.url = if options.url? then options.url else 'http://localhost'
+  internals.url = if options?.url? then options.url else 'http://localhost'
   
   {
+    flush: (db, cb) ->
+      db = if db then db else options.db
+      flusher db, cb
     look: (route, props, callend) ->
       internals.requireds = props.requireds if props?.requireds?
       internals.optionals = props.optionals if props?.optionals?

@@ -1,22 +1,28 @@
 
-## Add flusher view to views
 
-Go to views tab and click on `Add View`
+### Installation
+```
+sudo npm install v-sight
+```
 
-* Design Document Name:
+### Adding flusher view to views in `Couchbase`.
+1.  Go to **views** tab and click on `Create Development View`
+and insert bellows in fields:
 
 ```
+Design Document Name:
+
 _design/dev_flusher 
-```
 
-* View Name:
-
-```
+View Name:
 get_all
 ```
 
-* Click on edit and add bellow function to map:
+2.  Click on `edit` and add bellow function to **map**:
 
-``
+```
 function(doc) {emit(null, null)}
 ```
+### Examples and usage
+To find how to use please look at `examples`
+
