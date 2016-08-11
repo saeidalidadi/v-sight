@@ -32,18 +32,21 @@ internals =
     Q(pairs(array, @defaults))
 
   makeBodies: () ->
+    deffered = Q.defer()
     bodies = {}
-    @getPairs(@requireds).then (result) =>
-      bodies.r200 = result
-      bodies.r400 = []
-      temp = result
-      len = temp.length
-      
-      while len > 0
-        po = _.without(temp, temp[len-1])
-        bodies.r400.push po
+    if @requireds?
+      @getPairs(@requireds).then (result) =>
+        bodies.r200 = result
+        bodies.r400 = []
         temp = result
-        len--
+        len = temp.length
+        
+        while len > 0
+          po = _.without(temp, temp[len-1])
+          bodies.r400.push po
+          temp = result
+          len--
+    if @optionals?
       @getPairs(@optionals).then (opts) ->
         bodies.o200 = []
         req = bodies.r200
@@ -52,6 +55,9 @@ internals =
             r.slice()
           ).concat([o.slice()])
         bodies
+     else
+       deffered.resolve(bodies)
+       deffered.promise
 
   addFields: (pair) ->
     if pair[0][0] isnt '@'
@@ -72,6 +78,9 @@ internals =
     else
       cb()
 
+  makeQuery: (body) ->
+    deffered = Q.defer()
+    # quesy is like '?var=value&var=value'
   makeRequest: (body, statusCode, cb) ->
     @form =
       attachments: []
@@ -92,8 +101,11 @@ internals =
           request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
             if err
               throw err
-            cb(form, response)
-            assert.equal(response.statusCode, statusCode)
+            if response?.statusCode? and response.statusCode isnt statusCode
+              console.log response.statusCode
+              cb(form, response)
+            else
+              cb(form, true)
           )
         )
       else
@@ -102,13 +114,24 @@ internals =
         request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
           if err
             throw err
-          cb(form, response)
-          assert.equal(response.statusCode, statusCode)
+          if response?.statusCode? and response.statusCode isnt statusCode
+            console.log response
+            cb(form, response)
+          else
+            cb(form, true)
         )
 
-  flushData: ->
-  
-  checkStatus: (status, response) ->
+
+  checkStatus: (response, status) ->
+    deffered = Q.defer()
+    if response?.statusCode? and response.statusCode isnt status
+      console.log response.statusCode
+      deffered.resolve(false)
+      assert.equal(response.statusCode, status)
+    else
+      deffered.resolve(true)
+    deffered.promise
+
 
 
 module.exports = (options) ->
@@ -119,7 +142,8 @@ module.exports = (options) ->
     flush: (db, cb) ->
       db = if db then db else options.db
       flusher db, cb
-    look: (route, props, callend) ->
+    look: (route, props) ->
+      deffered = Q.defer()
       internals.requireds = props.requireds if props?.requireds?
       internals.optionals = props.optionals if props?.optionals?
       internals.defaults  = props.defaults if props?.defaults?
@@ -127,37 +151,43 @@ module.exports = (options) ->
       
       internals.makeBodies()
         .then (bodies) ->
-
           queue = (body, statusCode, bag, cb) ->
             curr = body.shift()
             Q.nfcall flusher, options.flusher, () ->
               internals.makeRequest(curr , statusCode, (request, response) ->
+                bag.push { request: request, response: response }
                 if body.length
-                  bag.push { request: request, response: response }
                   queue(body, statusCode,bag, cb)
                 else
-                  bag.push { request: request, response: response }
                   cb(bag)
               )
 
           async.series({
 
              r200: (cb) ->
-               queue [bodies.r200], 200, [], (bag) ->
-                 cb(null, bag)
+               if internals.requireds?
+                 queue [bodies.r200], 200, [], (bag) ->
+                   cb(null, bag)
+               else
+                 cb(null, true)
 
              r400: (cb) ->
-               queue bodies.r400, 400, [], (bag) ->
-                 cb(null, bag)
+               if internals.requireds?
+                 queue bodies.r400, 400, [], (bag) ->
+                   cb(null, bag)
 
              o200: (cb) ->
-               queue bodies.o200, 200, [], (bag) ->
-                 cb(null, bag)
+               if internals.optionals?
+                 queue bodies.o200, 200, [], (bag) ->
+                   cb(null, bag)
+               else
+                 cb(null, true)
             
           }, (err, result) ->
             if err
               throw err
-            callend(result)
+
+            deffered.resolve(result)
             if options.log?
               console.log '\n\n#################################### r200 #####################################\n\n'
               console.log result.r200[0].response.body
@@ -165,6 +195,6 @@ module.exports = (options) ->
               console.log result.r400[0].response.body
               console.log '\n\n#################################### o200 #####################################\n\n'
               console.log result.o200[0].response.body
-
           )
+          deffered.promise
   }
