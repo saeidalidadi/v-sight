@@ -1,7 +1,7 @@
 {
-  "name": "eye",
-  "version": "1.0.0",
-  "description": "eye look at API routes for validation test.",
+  "name": "v-sight",
+  "version": "1.0.4",
+  "description": "V-sight looking to API routes for validation test.",
   "main": "index.js",
   "scripts": {
     "test": "test"
@@ -14,6 +14,8 @@
   "author": "Saeid Alidadi",
   "license": "ISC",
   "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-coffee": "^2.3.2",
     "request": "^2.74.0"
   },
   "dependencies": {
