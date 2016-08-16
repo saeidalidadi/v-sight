@@ -18,16 +18,12 @@ assert    = chai.assert
         # check for dependent and iterate over theme and add theme one by one [done]
   # 2. iterate over bodies and post theme [done]
 
-
 internals =
   url: 'http://localhost'
-
   form: {
     attachments: []
   }
-
   defaults: {}
-  
   getPairs: (array) ->
     Q(pairs(array, @defaults))
 
@@ -49,7 +45,7 @@ internals =
     if @optionals?
       @getPairs(@optionals).then (opts) ->
         bodies.o200 = []
-        req = bodies.r200
+        req = bodies?.r200 ? []
         bodies.o200 = opts.map (o) ->
           req.map((r) ->
             r.slice()
@@ -80,8 +76,20 @@ internals =
 
   makeQuery: (body) ->
     deffered = Q.defer()
+    query = '?'
+    body.forEach (pair) ->
+      query = "#{query}#{pair[0]}=#{pair[1]}&"
+    deffered.resolve query
+    deffered.promise
     # quesy is like '?var=value&var=value'
   makeRequest: (body, statusCode, cb) ->
+    switch @method
+      when 'post' then @post(body, statusCode, cb)
+      when 'get'  then @get(body, statusCode, cb)
+      when 'put'  then @put(body, statusCode, cb)
+      else @delete(body, statusCode, cb)
+
+  post: (body, statusCode, cb) ->
     @form =
       attachments: []
     @makeForm body, () =>
@@ -98,11 +106,10 @@ internals =
       if @form.attachments.length
         form = @form
         attach(@form.attachments, () =>
-          request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
+          @agent.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
             if err
               throw err
             if response?.statusCode? and response.statusCode isnt statusCode
-              console.log response.statusCode
               cb(form, response)
             else
               cb(form, true)
@@ -111,44 +118,53 @@ internals =
       else
         form = @form
         delete @form.attachments
-        request.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
+        @agent.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
           if err
             throw err
           if response?.statusCode? and response.statusCode isnt statusCode
-            console.log response
             cb(form, response)
           else
             cb(form, true)
         )
+  get: (body, statusCode, cb) ->
+    @makeQuery(body)
+      .then (result) =>
+        @agent.get("#{@url}#{@route}#{result}")
+          .on 'response', (response) ->
+            cb()
 
-
+  put: (body, statusCode, cb) ->
+  delete: (body, statusCode, cb) ->
   checkStatus: (response, status) ->
     deffered = Q.defer()
     if response?.statusCode? and response.statusCode isnt status
-      console.log response.statusCode
       deffered.resolve(false)
       assert.equal(response.statusCode, status)
     else
       deffered.resolve(true)
     deffered.promise
-
+  reset: ->
+    @requireds = null
+    @optionals = null
 
 
 module.exports = (options) ->
-  
   internals.url = if options?.url? then options.url else 'http://localhost'
-  
   {
     flush: (db, cb) ->
       db = if db then db else options.db
       flusher db, cb
-    look: (route, props) ->
+    look: (method, route, props) ->
       deffered = Q.defer()
+      internals.method    = method.toLowerCase()
       internals.requireds = props.requireds if props?.requireds?
       internals.optionals = props.optionals if props?.optionals?
       internals.defaults  = props.defaults if props?.defaults?
       internals.route     = route
-      
+      if props.headers?
+        internals.agent = request.defaults(props.headers)
+      else
+        internals.agent = request
       internals.makeBodies()
         .then (bodies) ->
           queue = (body, statusCode, bag, cb) ->
@@ -161,40 +177,28 @@ module.exports = (options) ->
                 else
                   cb(bag)
               )
-
           async.series({
-
              r200: (cb) ->
                if internals.requireds?
                  queue [bodies.r200], 200, [], (bag) ->
                    cb(null, bag)
                else
                  cb(null, true)
-
              r400: (cb) ->
                if internals.requireds?
                  queue bodies.r400, 400, [], (bag) ->
                    cb(null, bag)
-
              o200: (cb) ->
                if internals.optionals?
                  queue bodies.o200, 200, [], (bag) ->
                    cb(null, bag)
                else
                  cb(null, true)
-            
           }, (err, result) ->
             if err
               throw err
-
+            internals.reset()
             deffered.resolve(result)
-            if options.log?
-              console.log '\n\n#################################### r200 #####################################\n\n'
-              console.log result.r200[0].response.body
-              console.log '\n\n#################################### r400 #####################################\n\n'
-              console.log result.r400[0].response.body
-              console.log '\n\n#################################### o200 #####################################\n\n'
-              console.log result.o200[0].response.body
           )
           deffered.promise
   }
