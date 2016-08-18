@@ -1,6 +1,6 @@
 {
   "name": "v-sight",
-  "version": "1.0.4",
+  "version": "1.2.8",
   "description": "V-sight looking to API routes for validation test.",
   "main": "index.js",
   "scripts": {
@@ -14,13 +14,13 @@
   "author": "Saeid Alidadi",
   "license": "ISC",
   "devDependencies": {
+    "chai-http": "^1.0.0",
     "gulp": "^3.9.1",
     "gulp-coffee": "^2.3.2",
     "request": "^2.74.0"
   },
   "dependencies": {
     "async": "^2.0.1",
-    "chai": "^3.5.0",
     "couchbase": "^2.2.1",
     "lodash": "^4.14.1",
     "q": "^1.4.1",

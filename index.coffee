@@ -5,8 +5,6 @@ pairs     = require './lib/pairs'
 flusher   = require './lib/flusher'
 async     = require 'async'
 request   = require 'request'
-chai      = require 'chai'
-assert    = chai.assert
 
 # validate for requireds and optionals [done]
   # 1. make bodies befor request [done]
@@ -23,6 +21,9 @@ internals =
   form: {
     attachments: []
   }
+  all: true
+  requireds: []
+  optionals: []
   defaults: {}
   getPairs: (array) ->
     Q(pairs(array, @defaults))
@@ -30,7 +31,7 @@ internals =
   makeBodies: () ->
     deffered = Q.defer()
     bodies = {}
-    if @requireds?
+    if @requireds.length
       @getPairs(@requireds).then (result) =>
         bodies.r200 = result
         bodies.r400 = []
@@ -42,18 +43,19 @@ internals =
           bodies.r400.push po
           temp = result
           len--
-    if @optionals?
+    if @optionals.length
       @getPairs(@optionals).then (opts) ->
         bodies.o200 = []
         req = bodies?.r200 ? []
-        bodies.o200 = opts.map (o) ->
-          req.map((r) ->
-            r.slice()
-          ).concat([o.slice()])
-        bodies
-     else
-       deffered.resolve(bodies)
-       deffered.promise
+        if req.length != 0
+          bodies.o200 = opts.map (o) ->
+            req.map((r) ->
+              r.slice()
+            ).concat([o.slice()])
+        else
+          bodies.o200 = ([o] for o in opts)
+    deffered.resolve(bodies)
+    deffered.promise
 
   addFields: (pair) ->
     if pair[0][0] isnt '@'
@@ -87,7 +89,8 @@ internals =
       when 'post' then @post(body, statusCode, cb)
       when 'get'  then @get(body, statusCode, cb)
       when 'put'  then @put(body, statusCode, cb)
-      else @delete(body, statusCode, cb)
+      else
+        console.log 'Not found any method, please set your method'
 
   post: (body, statusCode, cb) ->
     @form =
@@ -106,34 +109,63 @@ internals =
       if @form.attachments.length
         form = @form
         attach(@form.attachments, () =>
-          @agent.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
+          if @method is 'post'
+            @agent.post({url: "#{internals.url}#{internals.route}", formData: @form, headers: @headers}, (err, response, data) =>
+              if err
+                throw err
+              if response?.statusCode? and response.statusCode isnt statusCode
+                @all = false
+                cb(form, response)
+              else
+                cb(form, true)
+            )
+          else
+            @agent.post({url: "#{internals.url}#{internals.route}", formData: @form, headers: @headers}, (err, response, data) =>
+              if err
+                throw err
+              if response?.statusCode? and response.statusCode isnt statusCode
+                @all = false
+                cb(form, response)
+              else
+                cb(form, true)
+            )
+          )
+      else
+        form = @form
+        delete @form.attachments
+        if @method is 'post'
+          @agent.post({url: "#{internals.url}#{internals.route}", formData: @form, headers: @headers }, (err, response, data) =>
             if err
               throw err
             if response?.statusCode? and response.statusCode isnt statusCode
+              @all = false
               cb(form, response)
             else
               cb(form, true)
           )
-        )
-      else
-        form = @form
-        delete @form.attachments
-        @agent.post({url: "#{internals.url}#{internals.route}", formData: @form }, (err, response, data) ->
-          if err
-            throw err
-          if response?.statusCode? and response.statusCode isnt statusCode
-            cb(form, response)
-          else
-            cb(form, true)
-        )
+        else
+          @agent.put({url: "#{internals.url}#{internals.route}", formData: @form, headers: @headers }, (err, response, data) =>
+            if err
+              throw err
+            if response?.statusCode? and response.statusCode isnt statusCode
+              @all = false
+              cb(form, response)
+            else
+              cb(form, true)
+          )
+
   get: (body, statusCode, cb) ->
     @makeQuery(body)
       .then (result) =>
-        @agent.get("#{@url}#{@route}#{result}")
-          .on 'response', (response) ->
-            cb()
+        @agent.get "#{@url}#{@route}#{result}", (err, response, data) =>
+            if response?.statusCode? and response.statusCode isnt statusCode
+              @all = false
+              cb(result, response)
+            else
+              cb(result, true)
 
   put: (body, statusCode, cb) ->
+    @post(body, statusCode, cb)
   delete: (body, statusCode, cb) ->
   checkStatus: (response, status) ->
     deffered = Q.defer()
@@ -144,9 +176,9 @@ internals =
       deffered.resolve(true)
     deffered.promise
   reset: ->
-    @requireds = null
-    @optionals = null
-
+    @requireds = []
+    @optionals = []
+    @all = true
 
 module.exports = (options) ->
   internals.url = if options?.url? then options.url else 'http://localhost'
@@ -161,15 +193,23 @@ module.exports = (options) ->
       internals.optionals = props.optionals if props?.optionals?
       internals.defaults  = props.defaults if props?.defaults?
       internals.route     = route
-      if props.headers?
-        internals.agent = request.defaults(props.headers)
-      else
-        internals.agent = request
+      internals.headers   = if props.headers then props.headers else {}
+      internals.headers.connection = 'keep-alive'
+      internals.agent     = request
       internals.makeBodies()
         .then (bodies) ->
           queue = (body, statusCode, bag, cb) ->
             curr = body.shift()
-            Q.nfcall flusher, options.flusher, () ->
+            if internals.method is 'post'
+              Q.nfcall flusher, options.flusher, () ->
+                internals.makeRequest(curr , statusCode, (request, response) ->
+                  bag.push { request: request, response: response }
+                  if body.length
+                    queue(body, statusCode,bag, cb)
+                  else
+                    cb(bag)
+                )
+            else
               internals.makeRequest(curr , statusCode, (request, response) ->
                 bag.push { request: request, response: response }
                 if body.length
@@ -177,19 +217,22 @@ module.exports = (options) ->
                 else
                   cb(bag)
               )
+
           async.series({
              r200: (cb) ->
-               if internals.requireds?
+               if internals.requireds.length
                  queue [bodies.r200], 200, [], (bag) ->
                    cb(null, bag)
                else
                  cb(null, true)
              r400: (cb) ->
-               if internals.requireds?
+               if internals.requireds.length
                  queue bodies.r400, 400, [], (bag) ->
                    cb(null, bag)
+               else
+                 cb(null, true)
              o200: (cb) ->
-               if internals.optionals?
+               if internals.optionals.length
                  queue bodies.o200, 200, [], (bag) ->
                    cb(null, bag)
                else
@@ -197,8 +240,9 @@ module.exports = (options) ->
           }, (err, result) ->
             if err
               throw err
-            internals.reset()
+            result.all = internals.all
             deffered.resolve(result)
+            internals.reset()
           )
           deffered.promise
   }
