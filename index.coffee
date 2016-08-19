@@ -120,7 +120,7 @@ internals =
                 cb(form, true)
             )
           else
-            @agent.post({url: "#{internals.url}#{internals.route}", formData: @form, headers: @headers}, (err, response, data) =>
+            @agent.put({url: "#{internals.url}#{internals.route}", formData: @form, headers: @headers}, (err, response, data) =>
               if err
                 throw err
               if response?.statusCode? and response.statusCode isnt statusCode
@@ -166,7 +166,6 @@ internals =
 
   put: (body, statusCode, cb) ->
     @post(body, statusCode, cb)
-  delete: (body, statusCode, cb) ->
   checkStatus: (response, status) ->
     deffered = Q.defer()
     if response?.statusCode? and response.statusCode isnt status
