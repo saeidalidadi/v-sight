@@ -1,9 +1,10 @@
 v_sight = require '../index'
 
-vSight().flush({
-  bucket: 'bucketName'
-  admin: 'administrator'
-  password: 'admin'
+v_sight().flush({
+  bucket: 'tipi'
+  admin: 'Administrator'
+  password: 'rootroot'
 }, (result) ->
-  console.log result
+  console.log 'flushed'
+  process.exit()
 )

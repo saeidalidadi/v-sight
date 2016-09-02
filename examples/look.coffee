@@ -1,7 +1,8 @@
-vSight = require('../index.js')
+vSight = require('../index')
 chai = require 'chai'
 should = chai.should()
 chaiHttp = require 'chai-http'
+
 chai.use chaiHttp
 
 USER =
@@ -31,9 +32,9 @@ HOSTEL =
   address:        "Kings Cross, Sydney 2000"
   phone:          "+61 2200 3000"
   reception_name: "Jason K."
-  reception_avatar: "#{__dirname}/images/avatar.jpg"
+  reception_avatar: "#{__dirname}/eye.jpg"
   policy:         "This is our policy"
-  image_files:    [ "#{__dirname}/images/hostel1.jpg", "#{__dirname}/images/hostel2.jpg" ]
+  image_files:    [ "#{__dirname}/eye.jpg", "#{__dirname}/eye.jpg" ]
 
 URL = 'http://localhost:3100'
 config =
@@ -76,10 +77,13 @@ login_hostel = (credentials) ->
       res
 
 look = vSight(config).look
+flusher = vSight(config).flush
+afterEach (done) ->
+  flusher config.flusher, done
 # Post without authentication
 # user signup
 describe 'signup a user', ->
-  @.timeout(5000)
+  @.timeout(15000)
   it '01 should return true', (done)->
     validations =
       requireds: ['name:ali','@avatar', 'email', 'device:ios', 'version:2' ]
@@ -88,7 +92,7 @@ describe 'signup a user', ->
 
     look('POST', '/v1/users/signup', validations)
       .then (result) ->
-        console.log result.o200
+        console.log result
         done()
 
 # Post with authentication
@@ -107,7 +111,8 @@ describe 'create hostel', ->
         validations =
           requireds: ['name', 'email', 'password', 'country', 'city']
           optionals: ['description']
-          headers: res.headers
+          headers:
+            cookie: res.headers['set-cookie'][0].split(';',1)[0]
           defaults: HOSTEL
         look('POST', '/v1/admin/hostels', validations)
           .then (res) ->
@@ -117,33 +122,48 @@ describe 'create hostel', ->
 #   admin gets hostels list
 #   /v1/admin/hostels
 describe 'get hostel', ->
-  it '04should return hostels', ->
+  it '04 should return hostels', ->
     admin_agent.get('/v1/admin/hostels')
       .then (res) ->
-        console.log res.body
   it '05 should validate queries', (done) ->
     login_admin()
       .then (res) ->
         validations =
-          optionals: [ 'state:new', 'state:approved']
-          headers: res.headers
+          requireds: [ 'state:new', 'state:approved']
+          headers: res.headers['set-cookie'][0].split(';', 1)[0]
+          defaults: USER
         look('GET', '/v1/admin/hostel', validations)
-          .then (res) ->
-            console.log res
+          .then (result) ->
+            console.log result
             done()
 
 # Put with authentication
 #   hostel update profile
 #   /v1/dashboard/me
 describe 'update profile', ->
-  it '04 should return success after profile update', ->
-    login_hostel()
+  it '06 should return success after profile update', ->
+    login_admin()
       .then (res) ->
+        create_hostel()
+      .then (res) ->
+        login_hostel()
+      .then (ress) ->
+        cookie =  ress.headers['set-cookie'][0]
+        cookie =  cookie.split(';')
+        validations =
+          optionals: ['name', 'address']
+          defaults: HOSTEL
+          headers:
+            cookie: cookie[0]
+        look('PUT','/v1/dashboard/me', validations)
+          .then (result) ->
+            console.log result.o200
+        ###
         hostel_agent.put('/v1/dashboard/me')
         .field( 'name', 'new name')
         .then (res) ->
           console.log res.body
-
+        ###
 # Delete with authentication
 # hostel delete an image of activity
 # /v1/dashboard/me/images/{image_name}
