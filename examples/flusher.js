@@ -4,7 +4,7 @@
 
   v_sight = require('../index');
 
-  vSight().flush({
+  v_sight().flush({
     bucket: 'bucketName',
     admin: 'administrator',
     password: 'admin'
