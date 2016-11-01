@@ -56,11 +56,8 @@ v_sight.look(user_Options, user_schemas, (err , result) => {
 })
 ```
 #### Use with `Mocha`
-When using mocha pass done() callback to `flusher` like :
+When using mocha pass call `done()` in callback:
 ```javascript
-afterEach(function(done) {
-  flusher(db , done)
-});
 describe('Users', () => {
   it('should be validate for all requireds, optinals'), function(done) {
     v_sight.look(user_Options, user_schemas, (err , result) => {
