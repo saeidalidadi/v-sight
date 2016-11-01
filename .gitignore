@@ -1,6 +1,7 @@
 node_modules
-booking.coffee
 *.swp
 *.swo
-*.js
+joi-test.coffee
+test-missing-one.coffee
+examples
 \\
