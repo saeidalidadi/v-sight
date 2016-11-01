@@ -1,6 +1,6 @@
 {
   "name": "v-sight",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "V-sight looking to API routes for validation test.",
   "main": "lib/index.js",
   "scripts": {
