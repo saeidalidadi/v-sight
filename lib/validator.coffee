@@ -5,10 +5,11 @@ Missing_one     = require './delete_one'
 Request         = require 'request'
 Async           = require 'async'
 Compare         = require './compare'
+Fake            = require './fake-property'
 
 module.exports = class Validator
 
-  testCases: [ 'missing_one']
+  testCases: [ 'missing_one', 'fake_property' ]
   errors: []
   tests_count: 0
   first_error: on
@@ -62,7 +63,7 @@ module.exports = class Validator
     data =
       uri: "#{@baseUrl}/#{url}"
       method: method
-    for i, k in loads
+    _.each loads, (item, k) =>
       if loads[k].deleted
         if method is 'POST' or method is 'PUT'
           data.formData = loads[k].values
@@ -82,13 +83,13 @@ module.exports = class Validator
             @done(true, @errors)
           else @done(null, [])
 
-  missing_one: ->
-    for key, item of @schemas
+  create_payloads_queries: (creator) ->
+    _.each @schemas, (item, key) =>
       if item.query?
         schemas = Joi.describe(item.query)
       else
         schemas = Joi.describe(item.payload)
-      result  = Missing_one(schemas, item.defaults, key)
+      result  = creator(schemas, item.defaults, key)
       parts   = _.split(key, '/')
       method  = parts[0].toUpperCase()
       url     = _.join(parts.slice(1),'/')
@@ -99,11 +100,18 @@ module.exports = class Validator
           @missing_one_request(result, method, url)
         when 'GET'
           @missing_one_request(result, method, url)
+
+  fake_property: ->
+    #@Missing_one(Fake)
+
   tests: ->
-    for item, index in @testCases
+    _.each @testCases, (item, index) =>
       switch item
         when 'missing_one'
-          @missing_one()
+          @create_payloads_queries(Missing_one)
+        when 'fake_property'
+          console.log 'fake'
+          #@create_payloads_queries(Fake)
 
   run: ->
     _this = @
