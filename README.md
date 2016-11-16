@@ -9,6 +9,7 @@ It uses `Joi schema` signature for API schemas as input and will check for test 
 This module supports these test cases already:
 * `missing_one`: All properties except one will be sent in request and the response status code shoud be `400` if missed one is `required` and should not be `400` if it is one of `optionals` .
 * `fake_property`: All properties added one fake property which response should be `400`.
+
 ### Examples and usage
 ```javascript
 v_sight = require('v-sight')
