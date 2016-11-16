@@ -3,11 +3,23 @@
 sudo npm install v-sight
 ```
 ### How it works
-It uses `Joi schema` signature for API schemas as input and will check for test cases by making suited payloads or queries and will return result that contains unexpected responses from API calls.
+It uses `Joi schema` signature for API schemas as input and will check for test cases by making suited payloads or queries and will return result that contains unexpected responses from API calls for each route as below:
 
 ### Examples and usage
-The npm supports these test cases already:
+This module supports these test cases already:
 * `missing_one`: All properties except one will be sent in request and the response status code shoud be `400` if missed one is `required` and should not be `400` if it is one of `optionals` .
+* `fake_property`: All properties added one fake property which response should be `400`.
+
+### Returned errors structure
+All fialed tests have this structure when:
+```javascript
+{
+  status_code: 'http status codes',
+  url: 'baseUrl + route',
+  flag: 'from schema or fake for fake_property test case',
+  server_message: 'returning message from server',
+  help: 'a message will help you to find the error'
+}
 
 ```javascript
 v_sight = require('v-sight')
@@ -47,24 +59,23 @@ user_schemas = {
   }
 }
 
-v_sight.look(user_Options, user_schemas, (err , result) => {
-  if(err)
-   throw err
-  else
-    if(result.length)
-      console.log(result)
+v_sight.look(user_Options, user_schemas, (errors) => {
+  if(errors) {
+    console.log(errors)
+  }
 })
+
 ```
-#### Use with `Mocha`
-When using mocha pass call `done()` in callback:
+#### Use with `Mocha` and `chai`
+When using mocha you can call `done()` in callback:
 ```javascript
+var should = require('chai').should();
+
 describe('Users', () => {
   it('should be validate for all requireds, optinals'), function(done) {
-    v_sight.look(user_Options, user_schemas, (err , result) => {
-      err.should.be.equal('false')
-      result.length.should.be.equal(0)
+    v_sight.look(user_Options, user_schemas, (errors) => {
+      should.not.exist(errors)
       done()
     })
 });
 ```
-For more on how to use please look at `examples`.
