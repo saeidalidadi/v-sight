@@ -9,6 +9,23 @@ It uses `Joi schema` signature for API schemas as input and will check for test 
 This module supports these test cases already:
 * `missing_one`: All properties except one will be sent in request and the response status code shoud be `400` if missed one is `required` and should not be `400` if it is one of `optionals` .
 * `fake_property`: All properties added one fake property which response should be `400`.
+* `fake_post_query`: For REST APIs `POST` method just accepts payloads so to test these case you can add this to your cases in options.
+
+### API
+#### `defaults(configs)`
+Adding default options as an object as below properties:
+* `baseUrl`: the url will be used for all tests like `http://localhost:800`.
+* `testCases`: An array with test cases as items like`['fake_property', 'missing_one']`.
+
+#### `look(schemas, [options], [testCases], callback)`
+Will run all test cases which have been provided.
+- `schemas`: the Joi schemas
+- `options`:
+  - `testCases`: as `testsCases` in defaults.
+  - `baseUrl`: You may need to change base url for a set of tests so add it here.
+  - `login`: As an object for all routes which need authentication
+    - `url` : the login route which will use `baseUrl` as its base.
+    - `auth`: As an object which have all properties for login credentials.
 
 ### Examples and usage
 ```javascript
@@ -18,7 +35,7 @@ v_sight = require('v-sight')
 v_sight.defaults({ baseUrl: 'http://localhost:8080' })
 
 // Setting options for a role
-var user_options = {
+var options = {
   login: {
     url: '/v1/users/login',
     auth: {
@@ -29,7 +46,7 @@ var user_options = {
 }
 
 // User signup validations
-user_schemas = {
+schemas = {
   'post/v1/users/buy': {
     payload: {
       product_id: Joi.string().required(),
@@ -49,7 +66,7 @@ user_schemas = {
   }
 }
 
-v_sight.look(user_Options, user_schemas, (errors) => {
+v_sight.look(schemas, options, (errors) => {
   if(errors) {
     console.log(errors)
   }
