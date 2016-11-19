@@ -3,5 +3,5 @@ node_modules
 *.swo
 joi-test.coffee
 test-missing-one.coffee
-/examples
+examples/
 \\

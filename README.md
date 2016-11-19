@@ -21,11 +21,14 @@ Adding default options as an object as below properties:
 Will run all test cases which have been provided.
 - `schemas`: the Joi schemas
 - `options`:
-  - `testCases`: as `testsCases` in defaults.
+  - `testCases`: as `testsCases` in defaults.If not set all test cases will be applied.
+  - `timeout`: requests timeouts. If there is a `timeout` for any request it will be throw as an error with the url inside it, default is `3000` milliseconds.
+  - `first_error`: if set as `false` all errors will be returned, default is `true`.
   - `baseUrl`: You may need to change base url for a set of tests so add it here.
   - `login`: As an object for all routes which need authentication
     - `url` : the login route which will use `baseUrl` as its base.
     - `auth`: As an object which have all properties for login credentials.
+- `challback(errors)`: will be called when there is first error fror all cases.
 
 ### Examples and usage
 ```javascript
@@ -73,16 +76,33 @@ v_sight.look(schemas, options, (errors) => {
 })
 ```
 #### Returned errors structure
-All fialed tests have this structure:
-```javascript
-{
-  status_code: 'http status codes',
-  url: 'baseUrl + route',
-  flag: 'from schema or fake for fake_property test case',
-  server_message: 'returning message from server',
-  help: 'a message will help you to find the error'
-}
-```
+All fialed tests have these two signatures:
+
+1. When `first_error` has been set as `true`.default is `true`.
+
+  ```javascript
+  {
+    code: 'http status codes',
+    url: 'baseUrl + route',
+    flag: 'from schema or fake for fake_property test case',
+    server_message: 'returning message from server',
+    help: 'a message will help you to find the error'
+  }
+  ```
+2. when `first_error` has been set as `false`.
+
+  ```javascript
+  {
+    'post/users/signup': [
+      {
+        // as 1
+      }
+      ...
+    ]
+    ...
+  }
+  ``` 
+
 #### Use with `Mocha` and `chai`
 When using mocha you can call `done()` in callback:
 ```javascript
